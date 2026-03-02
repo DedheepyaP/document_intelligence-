@@ -1,0 +1,65 @@
+#  Python 
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+#  Virtual environments 
+venv/
+.venv/
+env/
+ENV/
+
+#  Environment variables 
+.env
+.env.*
+
+#  OCR / PDF artifacts 
+*.log
+*.tmp
+
+#  Image & PDF outputs (optional) 
+*.png
+*.jpg
+*.jpeg
+*.tiff
+*.bmp
+*.pdf
+
+#  OS files 
+.DS_Store
+Thumbs.db
+
+#  VS Code 
+.vscode/
+
+# -------- Test / cache --------
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage/
+htmlcov/
+
+# -------- Data / uploads / vector store --------
+data/documents/
+data/embeddings/
+
+# -------- Celery runtime --------
+celerybeat-schedule
+celerybeat-schedule.*
+celerybeat.pid
+
+# -------- Python packaging --------
+dist/
+build/
+*.egg-info/
+
+# -------- Databases --------
+*.db
+*.sqlite3
+
+# -------- Frontend --------
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
