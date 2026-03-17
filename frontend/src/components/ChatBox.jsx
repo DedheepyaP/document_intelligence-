@@ -56,13 +56,21 @@ export default function ChatBox({ uploadedFilename }) {
             const res = await queryDoc(question, selectedFilename || null);
             setMessages((prev) => [...prev, { role: "assistant", text: res.data.answer }]);
         } catch (err) {
+            if (err.response?.status === 429) {
             setMessages((prev) => [
+                ...prev,
+                { role: "assistant", text: "⚠️ Rate limit exceeded. Please try again later." },
+            ]);
+            }
+            else {
+                setMessages((prev) => [
                 ...prev,
                 {
                     role: "assistant",
                     text: "⚠️ " + (err.response?.data?.detail || "Something went wrong."),
                 },
             ]);
+            }
         } finally {
             setLoading(false);
         }

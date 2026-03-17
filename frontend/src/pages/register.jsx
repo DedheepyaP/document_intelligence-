@@ -23,6 +23,14 @@ function validate({ username, email, password, confirm }) {
     return e;
 }
 
+const Field = ({ id, label, error, children }) => (
+    <div>
+        <label htmlFor={id} className="form-label">{label}</label>
+        {children}
+        {error && <p className="field-err">{error}</p>}
+    </div>
+);
+
 export default function Register({ onSwitchToLogin }) {
     const [form, setForm] = useState({ username: "", email: "", password: "", confirm: "", role: "general" });
     const [showPw, setShowPw] = useState(false);
@@ -60,13 +68,7 @@ export default function Register({ onSwitchToLogin }) {
         </div>
     );
 
-    const Field = ({ id, label, error, children }) => (
-        <div>
-            <label htmlFor={id} className="form-label">{label}</label>
-            {children}
-            {error && <p className="field-err">{error}</p>}
-        </div>
-    );
+
 
     return (
         <div className="min-h-screen flex items-center justify-center px-4 py-10"

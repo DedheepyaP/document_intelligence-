@@ -1,5 +1,8 @@
 from celery import Celery
 from app.core.config import settings
+from app.core.telemetry import setup_telemetry
+
+setup_telemetry("document-worker")  
 
 celery_app = Celery(
     "document_system",

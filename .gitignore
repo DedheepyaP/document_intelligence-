@@ -13,53 +13,48 @@ ENV/
 #  Environment variables 
 .env
 .env.*
+!.env.example
 
 #  OCR / PDF artifacts 
 *.log
 *.tmp
 
-#  Image & PDF outputs (optional) 
-*.png
-*.jpg
-*.jpeg
-*.tiff
-*.bmp
-*.pdf
+#  Images & PDFs (uploaded documents — not source assets) 
+data/
 
 #  OS files 
 .DS_Store
 Thumbs.db
 
-#  VS Code 
+#  IDE 
 .vscode/
+.idea/
 
-# -------- Test / cache --------
+#  Test / cache 
 .pytest_cache/
 .mypy_cache/
 .coverage
 coverage/
 htmlcov/
+tests/
 
-# -------- Data / uploads / vector store --------
-data/documents/
-data/embeddings/
-
-# -------- Celery runtime --------
+#  Celery runtime 
 celerybeat-schedule
 celerybeat-schedule.*
 celerybeat.pid
 
-# -------- Python packaging --------
-dist/
+#  Python packaging artifacts 
 build/
 *.egg-info/
 
-# -------- Databases --------
+#  Databases 
 *.db
 *.sqlite3
 
-# -------- Frontend --------
+#  Frontend 
 frontend/node_modules/
 frontend/dist/
+frontend/.cache/
 frontend/.env
 frontend/.env.*
+!frontend/.env.example

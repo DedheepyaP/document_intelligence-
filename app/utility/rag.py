@@ -5,70 +5,70 @@ from langchain_groq import ChatGroq
 
 from app.core import settings
 
-# ---------------------------------------------------------------------------
-# LLM (shared across RAG utilities)
-# ---------------------------------------------------------------------------
-
 llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=settings.LLM_KEY, temperature=0.1)
 
-# ---------------------------------------------------------------------------
-# Mode / Role mappings
-# ---------------------------------------------------------------------------
 
 MODE_PROMPTS: dict[str, str] = {
-    "legal":      "You are a legal assistant. Extract clauses and summarize terms strictly.",
-    "academic":   "You are a researcher. Summarize papers and generate citations accurately if asked.",
-    "healthcare": "You are a medical assistant. Extract patient history and suggest treatments if any.",
-    "business":   "You are a business consultant. Transcribe meetings and extract action items.",
-    "finance":    "You are a financial analyst. Answer queries related to bank policies and credits.",
-    "general":    "You are a strict assistant. Use ONLY the information provided.",
+    # "legal":     "You are a legal assistant. Extract clauses and summarize terms strictly.",
+    # "academic":   "You are a researcher. Summarize papers and generate citations accurately if asked.",
+    # "healthcare": "You are a medical assistant. Extract patient history and suggest treatments if any.",
+    # "business":  "You are a business consultant. Transcribe meetings and extract action items.",
+    # "finance":   "You are a financial analyst. Answer queries related to bank policies and credits.",
+    # "general":   "You are a strict assistant. Use ONLY the information provided.",
+
+    "legal":     "You are a strict legal assistant. Extract clauses and summarize terms using ONLY the provided context.",
+    "academic":   "You are a strict researcher. Summarize papers using ONLY the provided context. Do NOT generate citations unless they are in the context.",
+    "healthcare": "You are a strict medical assistant. Extract patient history using ONLY the provided context. Do NOT suggest treatments unless explicitly mentioned in the context.",
+    "business":  "You are a strict business consultant. Transcribe meetings and extract action items using ONLY the provided context.",
+    "finance":   "You are a strict financial analyst. Answer queries related to bank policies and credits using ONLY the provided context.",
+    "general":   "You are a strict assistant. Answer using ONLY the provided context. Do NOT hallucinate or bring in outside knowledge.",
 }
 
 ROLE_TO_MODE: dict[str, str] = {
-    "doctor":           "healthcare",
-    "lawyer":           "legal",
-    "researcher":       "academic",
-    "admin":            "general",
-    "consultant":       "business",
+    "doctor": "healthcare",
+    "lawyer": "legal",
+    "researcher": "academic",
+    "admin":  "general",
+    "consultant": "business",
     "financial_analyst": "finance",
-    "general":          "general",
+    "general":  "general",
 }
 
 
 def get_mode_from_role(role: str) -> str:
-    """Map a user role string to its corresponding RAG mode."""
     return ROLE_TO_MODE.get(role.lower(), "general")
 
 
-# ---------------------------------------------------------------------------
-# Prompt templates
-# ---------------------------------------------------------------------------
+def build_super_query_chain(mode: str):
+    system_hint = MODE_PROMPTS.get(mode, MODE_PROMPTS["general"])
+    prompt = ChatPromptTemplate.from_messages([
+        (
+            "system",
+            "You are a retrieval assistant. Given the chat history and the user's "
+            "latest message, rewrite the question as a fully self-contained standalone question.\n"
+            f"Domain context: {system_hint} "
+            "Preserve ALL identifiers, numbers, codes, dates, and proper nouns "
+            "verbatim from the original question.\n\n"
+            "Respond ONLY with the rephrased standalone question, with no extra text or explanations.",
+        ),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
+    ])
+    return prompt | llm | StrOutputParser()
 
-contextualize_prompt = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        "Given a chat history and the latest user question which might reference "
-        "context in the chat history, formulate a standalone question which can be "
-        "understood without the chat history. Handle pronoun references "
-        "('it', 'that', 'them') and incomplete questions. "
-        "Do NOT answer the question. Only reformulate it if needed, otherwise return it as is.",
-    ),
-    MessagesPlaceholder("chat_history"),
-    ("human", "{input}"),
-])
 
-rephrase_chain = contextualize_prompt | llm | StrOutputParser()
+def parse_super_query(raw: str) -> str:
+    return raw.strip()
 
 
 def get_dynamic_prompt(mode: str) -> ChatPromptTemplate:
-    """Return a mode-specific answer prompt."""
     instruction = MODE_PROMPTS.get(mode, MODE_PROMPTS["general"])
     return ChatPromptTemplate.from_messages([
         (
             "system",
             f"{instruction}\n\n"
             "Rules:\n"
-            "1. Answer ONLY using the [CONTEXT] below.\n"
+            "1. Answer ONLY using the [CONTEXT] below. Do NOT use your internal knowledge.\n"
             "2. If the answer is not in the context, say: "
             "'No relevant information found in the provided documents.'\n"
             "3. Keep answers under 5 sentences. No filler like 'Based on the text...'\n"
@@ -82,12 +82,7 @@ def get_dynamic_prompt(mode: str) -> ChatPromptTemplate:
     ])
 
 
-# ---------------------------------------------------------------------------
-# Document formatter
-# ---------------------------------------------------------------------------
-
 def format_docs(docs: list[Document]) -> str:
-    """Concatenate page content from retrieved documents."""
     if not docs:
         return ""
     return "\n\n".join(

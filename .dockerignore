@@ -1,0 +1,46 @@
+#  Python 
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+
+#  Virtual environments 
+**/.venv
+**/venv
+**/.env
+
+#  OS artefacts 
+**/.DS_Store
+**/Thumbs.db
+
+#  Version control 
+**/.git
+**/.gitignore
+
+#  IDE / editors 
+**/.vscode
+**/.idea
+**/*.swp
+
+#  Docker meta (not needed inside image) 
+**/.dockerignore
+**/Dockerfile*
+**/compose.y*ml
+**/docker-compose*
+
+#  Node (frontend built in its own stage) 
+**/node_modules
+**/npm-debug.log
+frontend/
+
+#  Data & uploads (mounted as volumes, not baked in) 
+data/
+uploads/
+
+#  Tests (not needed at runtime) 
+tests/
+
+#  Docs 
+README*.md
+LICENSE

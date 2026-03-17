@@ -1,8 +1,8 @@
 import { useState } from "react";
 import Login from "./pages/login";
 import Register from "./pages/register";
-import Dashboard from "./pages/Dashboard";
-import AdminPanel from "./pages/AdminPanel";
+import Dashboard from "./pages/dashboard";
+import AdminPanel from "./pages/adminpanel";
 
 // Decode a JWT payload without a library (base64 decode the middle segment)
 function parseJwt(token) {

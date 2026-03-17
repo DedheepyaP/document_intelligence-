@@ -1,0 +1,156 @@
+services:
+
+  # PostgreSQL
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: docuuser
+      POSTGRES_PASSWORD: docupass
+      POSTGRES_DB: docudb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U docuuser -d docudb" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ChromaDB server
+  chromadb:
+    image: chromadb/chroma:latest
+    restart: unless-stopped
+    environment:
+      IS_PERSISTENT: "TRUE"
+      ANONYMIZED_TELEMETRY: "FALSE"
+      CHROMA_OTEL_ENABLED: "true"
+
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      OTEL_SERVICE_NAME: "chromadb"
+
+      CHROMA_OTEL_COLLECTION_ENDPOINT: "http://otel-collector:4317"
+      CHROMA_OTEL_SERVICE_NAME: "chromadb"
+      CHROMA_OTEL_GRANULARITY: "all"
+      OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    volumes:
+      - chroma_data:/data
+    healthcheck:
+      test: [ "CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8000" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # FastAPI backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://docuuser:docupass@db:5432/docudb
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+      UPLOAD_DIR: /app/uploads
+      ALLOWED_ORIGINS: "http://localhost,http://localhost:80"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: document-api
+
+    ports:
+      - "8000:8000"
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+
+  # Celery worker
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: celery -A app.core.celery_app worker --loglevel=info --concurrency=2
+    user: "1000:1000"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://docuuser:docupass@db:5432/docudb
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+      UPLOAD_DIR: /app/uploads
+      TORCHINDUCTOR_CACHE_DIR: /tmp/torchinductor_cache
+      HOME: /home/appuser
+      USER: appuser
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: document-worker
+
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+
+  # React/Vite frontend (nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+  # jaeger
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "14250:14250"
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    volumes:
+      - ./otel_collector_config.yaml:/etc/otel_collector_config.yaml
+    command: [ "--config=/etc/otel_collector_config.yaml" ]
+    ports:
+      - "4317:4317" # OTLP gRPC for API/Worker
+      - "8888:8888" # optional: Prometheus metrics
+
+volumes:
+  postgres_data:
+  redis_data:
+  chroma_data:
+  uploads_data:
